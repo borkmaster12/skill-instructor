@@ -1,0 +1,14 @@
+{
+    "disableAutoUpdate": false,
+    "name": "skill-instructor",
+    "author": "borkmaster",
+    "version": "1.0.0",
+    "description": "Learn newly available skills on level up",
+    "options": {
+        "niceName": "skill-instructor"
+    },
+    "servers": [
+        ""
+    ],
+    "supportUrl": "https://discord.gg/hVwJxM"
+}
