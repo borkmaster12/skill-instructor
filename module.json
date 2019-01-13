@@ -8,7 +8,7 @@
         "niceName": "skill-instructor"
     },
     "servers": [
-        ""
+        "https://raw.githubusercontent.com/borkmaster12/skill-instructor/master/"
     ],
     "supportUrl": "https://discord.gg/hVwJxM"
 }
