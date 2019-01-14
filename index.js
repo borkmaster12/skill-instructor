@@ -17,14 +17,9 @@ module.exports = function skillUpdateLogger(mod) {
     let hookInv = null;
     let hookStatus = null;
     const COMMAND = mod.command;
-    const getGameId = () => { return mod.game.me.gameId };
-    const getLevel = () => { return mod.game.me.level };
+    const GET_GAMEID = () => { return mod.game.me.gameId };
+    const GET_LEVEL = () => { return mod.game.me.level };
     const REQUEST_SKILL_LEARN_LIST = () => { mod.send('C_SKILL_LEARN_LIST', 1, { unk: 0xFFFFFFFF }); };
-    const DEBUG_LOG = (logMessage) => { console.log( GET_DATE_STAMP() + logMessage ) };
-    const GET_DATE_STAMP = () => {
-        let d = new Date();
-        return "[" + d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + ":" + d.getMilliseconds() + "] ";
-    };
     const LEARN_NEW_SKILLS = () => {
         TEMP_LISTEN_PLAYER_GOLD();
         global.invCacheOverride = 1;
@@ -32,7 +27,7 @@ module.exports = function skillUpdateLogger(mod) {
     };
     const TEMP_LISTEN_PLAYER_GOLD = () => {
         hookInv = mod.hook(`S_INVEN`, 16, (event) => {
-            if (event.gameId === getGameId()) {
+            if (event.gameId === GET_GAMEID()) {
                 mod.unhook(hookInv);
                 hookInv = null;
                 playerGold = event.gold;
@@ -45,7 +40,7 @@ module.exports = function skillUpdateLogger(mod) {
         hookSLL = mod.hook(`S_SKILL_LEARN_LIST`, 1, (event) => {
             mod.unhook(hookSLL);
             hookSLL = null;
-            skillLearnList = event.skillList.filter(skill => skill.level <= getLevel() && playerGold >= skill.price);
+            skillLearnList = event.skillList.filter(skill => skill.level <= GET_LEVEL() && playerGold >= skill.price);
             global.invCacheOverride = 0;
             if (Array.isArray(skillLearnList) && skillLearnList.length) {
                 mod.game.me.inCombat ? WAIT_UNTIL_COMBAT_END() : TRY_PURCHASE_SKILLS();
@@ -69,7 +64,7 @@ module.exports = function skillUpdateLogger(mod) {
     };
     const WAIT_UNTIL_COMBAT_END = () => {
         hookStatus = mod.hook(`S_USER_STATUS`, 2, (event) => {
-            if (event.gameId === getGameId() && event.status === 0) {
+            if (event.gameId === GET_GAMEID() && event.status === 0) {
                 mod.unhook(hookStatus);
                 hookStatus = null;
                 TRY_PURCHASE_SKILLS();
@@ -78,20 +73,13 @@ module.exports = function skillUpdateLogger(mod) {
     };
 
     mod.hook(`S_USER_LEVELUP`, 2, (event) => {
-        if (event.gameId === getGameId()) {
-            COMMAND.message(`Congrats on level ${getLevel()}! Checking for new skills...`);
+        if (event.gameId === GET_GAMEID()) {
+            COMMAND.message(`Congrats on level ${GET_LEVEL()}! Checking for new skills...`);
             LEARN_NEW_SKILLS();
         }
     });
 
     COMMAND.add('learn', () => {
         LEARN_NEW_SKILLS();
-    });
-
-    COMMAND.add('testValues', () => {
-        console.log('playerGameId = ' + getGameId());
-        console.log('mod.game.me.gameId = ' + mod.game.me.gameId);
-        console.log('Player Level: ' + getLevel());
-        console.log('mod.game.me.level = ' + mod.game.me.level);
     });
 };
