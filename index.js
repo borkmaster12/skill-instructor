@@ -65,7 +65,7 @@ module.exports = function skillUpdateLogger(mod) {
     };
     const WAIT_UNTIL_COMBAT_END = () => {
         hookStatus = mod.hook(`S_USER_STATUS`, 2, (event) => {
-            if (event.gameId === GET_GAMEID() && GET_STATUS() === 0) {
+            if (event.gameId === GET_GAMEID() && event.status === 0) {
                 mod.unhook(hookStatus);
                 hookStatus = null;
                 TRY_PURCHASE_SKILLS();
