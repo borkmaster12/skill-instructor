@@ -19,6 +19,7 @@ module.exports = function skillUpdateLogger(mod) {
     const COMMAND = mod.command;
     const GET_GAMEID = () => { return mod.game.me.gameId };
     const GET_LEVEL = () => { return mod.game.me.level };
+    const GET_STATUS = () => { return mod.game.me.status };
     const REQUEST_SKILL_LEARN_LIST = () => { mod.send('C_SKILL_LEARN_LIST', 1, { unk: 0xFFFFFFFF }); };
     const LEARN_NEW_SKILLS = () => {
         TEMP_LISTEN_PLAYER_GOLD();
@@ -64,7 +65,7 @@ module.exports = function skillUpdateLogger(mod) {
     };
     const WAIT_UNTIL_COMBAT_END = () => {
         hookStatus = mod.hook(`S_USER_STATUS`, 2, (event) => {
-            if (event.gameId === GET_GAMEID() && event.status === 0) {
+            if (event.gameId === GET_GAMEID() && GET_STATUS() === 0) {
                 mod.unhook(hookStatus);
                 hookStatus = null;
                 TRY_PURCHASE_SKILLS();
