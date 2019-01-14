@@ -7,96 +7,91 @@ TODO:
         - Options to temporarily disable Item Cache blocking packets
         - Find how the data comes back from Item Cache to the client and use that
         - Make Item Cache update a global variable for player gold
-        - See if there are any options in the Item Cache config
         - Just drop gold-checking all together (maybe just have a toggle-able option for it)
     - Automatically remove the new skill glyph popup notification when you level up (glyphs level 20)
-    - Look further into the 'Me' class at \mods\tera-game-state\lib (mod.game.Me.inCombat/gameId)
 */
 module.exports = function skillUpdateLogger(mod) {
-    let playerId = 0;
-    let playerLevel = 0;
     let playerGold = 0;
-    let purchaseList = [];
+    let skillLearnList = [];
     let hookSLL = null;
     let hookInv = null;
     let hookStatus = null;
     const COMMAND = mod.command;
-    const SEND_C_SKILL_LEARN_LIST = () => { mod.send('C_SKILL_LEARN_LIST', 1, { unk: 0xFFFFFFFF }); };
+    const getGameId = () => { return mod.game.me.gameId };
+    const getLevel = () => { return mod.game.me.level };
+    const REQUEST_SKILL_LEARN_LIST = () => { mod.send('C_SKILL_LEARN_LIST', 1, { unk: 0xFFFFFFFF }); };
     const DEBUG_LOG = (logMessage) => { console.log( GET_DATE_STAMP() + logMessage ) };
     const GET_DATE_STAMP = () => {
         let d = new Date();
         return "[" + d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + ":" + d.getMilliseconds() + "] ";
     };
     const LEARN_NEW_SKILLS = () => {
-        HOOK_NEXT_INV();
+        TEMP_LISTEN_PLAYER_GOLD();
         global.invCacheOverride = 1;
         mod.send('C_SHOW_INVEN', 1, { unk: 1 });
     };
-    const HOOK_NEXT_INV = () => {
+    const TEMP_LISTEN_PLAYER_GOLD = () => {
         hookInv = mod.hook(`S_INVEN`, 16, (event) => {
-            if (event.gameId === playerId) {
-                playerGold = event.gold;
-                COMMAND.message("Player Gold: " + playerGold);
+            if (event.gameId === getGameId()) {
                 mod.unhook(hookInv);
                 hookInv = null;
-                HOOK_NEXT_SLL();
-                SEND_C_SKILL_LEARN_LIST();
+                playerGold = event.gold;
+                TEMP_LISTEN_SLL();
+                REQUEST_SKILL_LEARN_LIST();
             }
         });
-    }
-    const HOOK_NEXT_SLL = () => {
+    };
+    const TEMP_LISTEN_SLL = () => {
         hookSLL = mod.hook(`S_SKILL_LEARN_LIST`, 1, (event) => {
-            purchaseList = event.skillList.filter(skill => skill.level <= playerLevel && playerGold >= skill.price);
-            global.invCacheOverride = 0;
             mod.unhook(hookSLL);
             hookSLL = null;
-            console.log(purchaseList);
-            if (purchaseList) { mod.game.me.inCombat ? WAIT_UNTIL_COMBAT_END() : TRY_PURCHASE_SKILLS(); }
+            skillLearnList = event.skillList.filter(skill => skill.level <= getLevel() && playerGold >= skill.price);
+            global.invCacheOverride = 0;
+            if (Array.isArray(skillLearnList) && skillLearnList.length) {
+                mod.game.me.inCombat ? WAIT_UNTIL_COMBAT_END() : TRY_PURCHASE_SKILLS();
+            } else {
+                COMMAND.message("No new skills to purchase.");
+            }
         });
     };
     const TRY_PURCHASE_SKILLS = () => {
-        if (playerGold && purchaseList) {
-            purchaseList.forEach(skill => {
+        if (playerGold && skillLearnList) {
+            COMMAND.message(`${skillLearnList.length} new skills available. Learning skills...`);
+            skillLearnList.forEach(skill => {
                 if (playerGold >= skill.price) {
                     mod.send(`C_SKILL_LEARN_REQUEST`, 1, { unk1: 0, skill: skill.skill, type: skill.type });
-                    COMMAND.message(`Purchasing skill: ${skill.skill} for price: ${skill.price}`);
                     playerGold -= BigInt(skill.price);
                 } else {
-                    COMMAND.message(`Not enough gold to purchase skill ${skill.skill} - Cost: ${skill.price}`);
+                    COMMAND.message(`Not enough gold to learn skill ${skill.skill} - Cost: ${skill.price}.`);
                 }
             });
-            playerGold = 0;
-            purchaseList = [];
         }
     };
     const WAIT_UNTIL_COMBAT_END = () => {
         hookStatus = mod.hook(`S_USER_STATUS`, 2, (event) => {
-            if (event.status === 0) {
+            if (event.gameId === getGameId() && event.status === 0) {
                 mod.unhook(hookStatus);
                 hookStatus = null;
                 TRY_PURCHASE_SKILLS();
             }
-        })
+        });
     };
 
-    mod.hook(`S_LOGIN`, 12, (event) => {
-        playerId = event.gameId;
-        playerLevel = event.level;
-    });
-
     mod.hook(`S_USER_LEVELUP`, 2, (event) => {
-        if (event.gameId === playerId) {
-            playerLevel = event.level;
+        if (event.gameId === getGameId()) {
+            COMMAND.message(`Congrats on level ${getLevel()}! Checking for new skills...`);
             LEARN_NEW_SKILLS();
         }
     });
 
-    COMMAND.add('testFlow', () => {
-        HOOK_NEXT_INV();
-        mod.send('C_SHOW_INVEN', 1, { unk: 1 });
-    })
+    COMMAND.add('learn', () => {
+        LEARN_NEW_SKILLS();
+    });
 
-    COMMAND.add('testCombat', () => {
-        COMMAND.message('In Combat? ' + mod.game.me.inCombat);
-    })
+    COMMAND.add('testValues', () => {
+        console.log('playerGameId = ' + getGameId());
+        console.log('mod.game.me.gameId = ' + mod.game.me.gameId);
+        console.log('Player Level: ' + getLevel());
+        console.log('mod.game.me.level = ' + mod.game.me.level);
+    });
 };
